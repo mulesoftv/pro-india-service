@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:azure-storage="http://www.mulesoft.org/schema/mule/azure-storage" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:ftp="http://www.mulesoft.org/schema/mule/ftp" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/ftp http://www.mulesoft.org/schema/mule/ftp/current/mule-ftp.xsd http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd http://www.mulesoft.org/schema/mule/azure-storage http://www.mulesoft.org/schema/mule/azure-storage/current/mule-azure-storage.xsd http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+    <http:listener-config name="corona-system-service-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="corona-system-service-config" api="corona-system-service.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <azure-storage:config name="Azure_Storage_Config" doc:name="Azure Storage Config" doc:id="75d3d60b-94c3-4cb5-962b-64942e54fd89">
+        <azure-storage:access-key-azure-connection accountName="${azure.key}" accountKey="${azure.account}" />
+    </azure-storage:config>
+    <ftp:config name="FTP_Config" doc:name="FTP Config" doc:id="31ce8386-4126-4b34-b16b-5359e9738c8a">
+        <ftp:connection host="107.180.46.188" username="mule_Prod" password="Sharu@$77" />
+    </ftp:config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="64e48de5-075e-421b-9856-29deb82991a7" >
+		<http:request-connection host="${carona-endpoint.host}"/>
+	</http:request-config>
+	<db:config name="Database_Config1" doc:name="Database Config" doc:id="2411a861-dcea-4e54-8fa8-201002ef2b5b" >
+		<db:my-sql-connection host="${db.host}" port="${db.port}" user="${db.user}" password="${db.password}" database="${db.database}" />
+	</db:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="b0c3a205-a2a5-46aa-aa8b-8da372bf6dae" file="prop.yaml" />
+	<flow name="corona-system-service-main">
+        <http:listener config-ref="corona-system-service-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="corona-system-service-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="corona-system-service-console">
+        <http:listener config-ref="corona-system-service-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="corona-system-service-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\corona:application\json:corona-system-service-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"200"]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="post:\corona:application\json:corona-system-service-config">
+        <logger level="INFO" doc:name="Logger" doc:id="b0ce41e7-93fc-4f93-bafd-7412da78c7de" message="source payload posting to carona-system-service"/>
+		<logger level="INFO" doc:name="Logger" doc:id="76b763bb-124a-4480-bf5c-a845774b1212" message="#[payload]"/>
+		<ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<foreach doc:name="For Each" doc:id="60ef29a9-b105-4bd9-a8df-cfce43bd2d92">
+            <set-variable value="#[payload]" doc:name="ActualPayload" doc:id="5831cbb7-8e89-4e08-9697-d04e1d72bd76" variableName="ActualPayload"/>
+			<ee:transform doc:name="Transform Message" doc:id="fb4806f1-523a-4626-9851-a14cccbe054f" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+ { 
+    Age : " the age is " ++ payload.Age ++ "years" ,
+    Gender : payload.Categerie.gender,
+    Name_of_patient : payload.details.PatientName as String,
+    pateint_loc :(payload.details.patientLocation.Location.City) ++ (payload.details.patientLocation.Location."House number") joinBy  " ",
+    Patient_Citizen : payload.details.Citizen as String ,
+    address :(payload.details.PatientAddressdetails.patientaddress.addressdetails splitBy  " " )[1 to 2] joinBy  " " ,
+    HospitalName : payload.details.hospitalName as String,
+    PinCode : (payload.details.ZIPCODE.ZipCode joinBy  " ") as Number,
+    Govtid : payload.Govtid
+    }]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<set-variable doc:name="Set Variable" doc:id="1efcf8e5-2dff-49d2-9a10-0b67cd09e802" variableName="caronaObject" value="#[%dw 2.0 &#xA;output application/json &#xA;--- &#xA;payload]" />
+            <set-variable value="#[payload.Name_of_patient]" doc:name="Set Variable" doc:id="d882c24b-47fa-4415-946f-342f3feddc7f" variableName="PatientName" />
+            <ee:transform doc:name="Transform Message" doc:id="0e4dc306-7296-4efd-b733-ec9753976104">
+                <ee:message>
+                </ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="sourceCsv" ><![CDATA[%dw 2.0
+output application/csv
+---
+payload]]></ee:set-variable>
+				</ee:variables>
+            </ee:transform>
+			<try doc:name="Try" doc:id="4ed03988-2c5f-4167-ab4e-a5d171b8b359" >
+				<db:insert doc:name="Insert" doc:id="e11df295-a240-449a-a287-428e6596e235" config-ref="Database_Config1">
+				<db:sql><![CDATA[insert into caronasystem(Name_of_patient,pateint_loc,Patient_Citizen,address,HospitalName,
+PinCode,age,Govtid) values (:Name_of_patient,:pateint_loc,:Patient_Citizen,:address,:HospitalName,
+:PinCode,:age,:Govtid);]]></db:sql>
+				<db:input-parameters><![CDATA[#[{ 
+	"Name_of_patient" : vars.caronaObject.Name_of_patient,
+	"pateint_loc" : vars.caronaObject.pateint_loc,
+	"Patient_Citizen" : vars.caronaObject.Patient_Citizen,
+	"address" : vars.caronaObject.address,
+	"HospitalName": vars.caronaObject.HospitalName,
+	"PinCode" : vars.caronaObject.PinCode,
+	"age": vars.caronaObject.Age,
+	"Govtid": vars.caronaObject.Govtid
+}]]]></db:input-parameters>
+			</db:insert>
+				<logger level="INFO" doc:name="Logger" doc:id="46476a58-7246-4884-926f-bdaea0006124" message="data inserted into database" />
+				<error-handler >
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="77d13a6d-00b1-4b8e-a060-2816844189b2" type="DB:QUERY_EXECUTION">
+						<logger level="INFO" doc:name="Logger" doc:id="f9b2d431-2bfe-430c-b5a8-6aac564ca1a3" message='#["skipping the error the Govtid" ++ (vars.caronaObject.Govtid)]' />
+					</on-error-continue>
+				</error-handler>
+			</try>
+        </foreach>
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d17f9396-88ff-46aa-a585-671c9d4c4818" type="DB:BAD_SQL_SYNTAX, DB:CONNECTIVITY, DB:RETRY_EXHAUSTED, FTP:ACCESS_DENIED, FTP:CONNECTIVITY, FTP:FILE_ALREADY_EXISTS, FTP:FILE_LOCK, FTP:ILLEGAL_CONTENT, FTP:ILLEGAL_PATH, FTP:RETRY_EXHAUSTED, EXPRESSION, STREAM_MAXIMUM_SIZE_EXCEEDED">
+				<logger level="INFO" doc:name="Copy_of_Copy_of_Logger" doc:id="11be51d4-bcac-4816-b69f-4fd86183e613" message="error occured while process, writing all the data to Azure queues" />
+				<flow-ref doc:name="Copy_of_Copy_of_Flow Reference" doc:id="44ea1b99-ad64-4935-a5ae-726653b409e1" name="corona-system-serviceFlow" />
+			</on-error-propagate>
+        </error-handler>
+    </flow>
+	<flow name="corona-system-serviceFlow" doc:id="3acd7643-2811-4323-925e-10441fe30faa" >
+		<logger level="INFO" doc:name="Logger" doc:id="39c338a2-7f37-4ab1-83fd-4ca818092b90" />
+		<ee:transform doc:name="Transform Message" doc:id="609001c4-5fa1-4c0f-ab96-e7b378dbbd13" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="queuePayload" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.ActualPayload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="96ad6d59-d7d5-4801-9019-88ad6b5f201b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"errorPayload" : vars.queuePayload
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="b15ef9ae-d30d-46fa-a936-7eed193968c1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+write(payload,"application/json")]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<azure-storage:add-message-to-queue doc:name="Add message to queue" doc:id="25974f03-7bfd-4d3e-af5e-531e8cc9569c" config-ref="Azure_Storage_Config">
+			<azure-storage:message queueMessage="#[payload]" queueName="${azure.errorqueue}" />
+		</azure-storage:add-message-to-queue>
+		<logger level="INFO" doc:name="Logger" doc:id="67995c2e-c096-45f2-bec0-69a90b69890e" message="added failure message to queue"/>
+	</flow>
+	<flow name="pick_azure_failed_messages" doc:id="1ca1a75c-bc0b-4a38-91e8-b684d07ec3d5" >
+		<scheduler doc:name="Scheduler" doc:id="e8935173-b665-4afd-b8ee-43d10b3141cf" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Logger" doc:id="319ee4a3-cca9-4c3f-bbfb-215ec04b7922" message="scheduler started"/>
+		<azure-storage:get-queue-length doc:name="Get queue length" doc:id="0ca586b3-feb2-44ae-9078-a61385dede0e" config-ref="Azure_Storage_Config" queueName="${azure.errorqueue}" target="queue_length"/>
+		<choice doc:name="Choice" doc:id="d0e81ed1-6374-49e1-a78b-57b7abf5d1b2" >
+			<when expression="#[vars.queue_length &gt;=1]">
+				<logger level="INFO" doc:name="Logger" doc:id="7b9c1a7b-805c-4d28-bee7-01151fe913c2" message="#[payload]" />
+				<azure-storage:peek-message-from-queue doc:name="Peek message from queue" doc:id="f6027715-2707-4dfa-8b2f-b57763f8074e" config-ref="Azure_Storage_Config" queueName="${azure.errorqueue}" />
+				<logger level="INFO" doc:name="Logger" doc:id="a264207e-3141-4149-a257-6784dd274cc4" message="message picked from error payload"/>
+				<ee:transform doc:name="Transform Message" doc:id="8c9f71fb-b972-4e29-b7d7-03aef37a85a8" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+read(payload, "application/json")]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<ee:transform doc:name="Transform Message" doc:id="749f6463-1383-4e18-8c83-bb03cac58c2b" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;[payload.errorPayload]]" doc:name="queue_payload_sent" doc:id="901575ea-31ef-41e7-a9bd-76956e3ba21c" variableName="queueSent"/>
+				<try doc:name="Try" doc:id="a2aaf467-c375-4ce3-a8bf-634180c18606" >
+					<http:request method="POST" doc:name="Request" doc:id="fd20c909-b0e8-40f1-b365-7acebc994b50" config-ref="HTTP_Request_configuration" path="${carona-endpoint.path}" responseTimeout="500000">
+					<http:body><![CDATA[#[vars.queueSent]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+				</http:request>
+					<logger level="INFO" doc:name="Logger" doc:id="62af38e0-4e4e-4e24-8f4f-bd7362bfa68d" message="successfully posted the failure message to carona system" />
+					<error-handler>
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="9f15b247-cea9-4583-b95e-3f915dcb1147" type="ANY">
+							<set-variable value="FAIL" doc:name="Set Variable" doc:id="a8d68513-55ba-4100-a8df-6613d1fa8da4" variableName="caronaRequest"/>
+							<logger level="INFO" doc:name="Logger" doc:id="3f5f941a-d190-4a05-a41e-4cf7b78bdbdc" message="endpoint call failure , error occured while posting to carona system"/>
+						</on-error-continue>
+					</error-handler>
+				</try>
+				<choice doc:name="Choice" doc:id="4df0cc55-5c2b-43b1-8302-dbdc6574146e">
+					<when expression='#[vars.caronaRequest != "FAIL"]'>
+						<azure-storage:dequeue-message doc:name="Dequeue message" doc:id="5455526d-dc9c-49d2-b7e5-66d6896bbb43" config-ref="Azure_Storage_Config" queueName="${azure.errorqueue}" />
+						<logger level="INFO" doc:name="Logger" doc:id="a0d56033-1832-4967-8dba-663bea0e2f4a" message="message successfully posted to carona system hence message removed"/>
+					</when>
+					<when expression='#[vars.caronaRequest == "FAIL"]'>
+						<azure-storage:dequeue-message doc:name="Dequeue message" doc:id="26b7fedd-dae1-4e7e-bdf4-7f310f8b5c04" config-ref="Azure_Storage_Config" queueName="${azure.errorqueue}"/>
+						<ee:transform doc:name="Transform Message" doc:id="96f19219-0733-4db0-bb4c-b089738d2ec0" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{ 
+	"errorPayload" : vars.queueSent,
+	"http-info" : { 
+		"method":"post",
+		"error" : "unable to post corona-system-service flow"
+	}
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<ee:transform doc:name="Transform Message" doc:id="a99077c8-a544-494c-a4ea-63a877e4eef9" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+write(payload,"application/json")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<azure-storage:add-message-to-queue doc:name="Add message to queue" doc:id="c0ff2aad-adcf-4724-9f48-4abb2869bc38" config-ref="Azure_Storage_Config">
+							<azure-storage:message queueMessage="#[payload]" queueName="${azure.deadqueue}"/>
+						</azure-storage:add-message-to-queue>
+						<logger level="INFO" doc:name="Logger" doc:id="f9f56139-0035-4b00-85e3-6e588d8a0af2" message="added messages to dead letter queue"/>
+					</when>
+					<otherwise >
+						<logger level="INFO" doc:name="Logger" doc:id="2a9818d2-4201-4d07-935e-26131ffd1a97" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="5bec9f10-49d7-4e2a-82c7-b00fdb2769de" message="there are no messages available in queue"/>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="5eb7584d-1b27-4c88-be4c-f278a78b662a" message="scheduler picked ,flow completed"/>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="49ffa949-9268-4f3b-b40a-70d17829455b" type="ANY">
+				<logger level="INFO" doc:name="Logger" doc:id="34e2741c-b725-44e7-aad1-7218144f68fa" message="exception"/>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+</mule>

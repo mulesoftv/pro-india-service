@@ -1,0 +1,51 @@
+#%RAML 1.0
+title: corona-system-service
+version: v1.0.0
+mediaType: 
+- application/json
+protocols:
+  - HTTP
+/corona:
+  get:
+    description: "getting data"
+    body:
+      application/json:
+        examples:
+          {
+            "name": "Rajesh",
+            "age" : 24
+          }
+    responses:
+      200:
+        body:
+          application/json:
+            examples:
+              {
+                "status" : "200",
+                "message" : "success"
+              }
+  post:
+    description: "posting data"
+    body:
+      application/json:
+        examples: !includecorona-system-sample-object.raml
+    responses:
+      200:
+        body:
+          application/json:
+            examples:
+              {
+                "status" : "200",
+                "messsage": "success"
+              }
+      201:
+        body:
+          application/json:
+            examples:
+              {
+                "status" : "201",
+                "messsage": "success"
+              }
+      
+              
+            

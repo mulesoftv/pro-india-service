@@ -1,0 +1,21 @@
+db:
+  host: "a2nlmysql61plsk.secureserver.net"
+  port: "3306"
+  user: "mule_QA"
+  password: "r6Nzj8?9"
+  database: "ph21340025785_vision"
+  
+carona-endpoint: 
+  host: "carona.us-e2.cloudhub.io"
+  path: "/api/corona"
+
+azure:
+  account: "DefaultEndpointsProtocol=https;AccountName=muledev;AccountKey=g8G3TV2xY1opFxMuXQYrpSUEIgbyKvj30pD3QYcGG4NOBhEG/axMFbzFUgitoQi5gQWj7lRprO0q+AStnVH7Dw==;EndpointSuffix=core.windows.net"
+  key: "muledev"
+  errorqueue: "carona-error-queue"
+  deadqueue: "deadcaronaqueues"
+  
+  
+  
+
+
